@@ -1,94 +1,91 @@
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.STD_LOGIC_ARITH.ALL;
+USE IEEE.STD_LOGIC_UNSIGNED.ALL;
 
-entity SEQRecognizer is
-    port (
-        clk         : in std_logic;
-        rst         : in std_logic;
-        input_number : in unsigned(7 downto 0);
-        input_reset : in std_logic;
-        input_first : in std_logic;
-        unlock      : out std_logic;
-        warning     : out std_logic
+ENTITY SequenceRecognizer IS
+    PORT (
+        clk : IN STD_LOGIC;
+        reset : IN STD_LOGIC;
+        number : IN STD_LOGIC_VECTOR(7 DOWNTO 0); -- 8-bit input number
+        first : IN STD_LOGIC; -- Boolean flag for first number
+        unlock : OUT STD_LOGIC; -- Unlock output
+        warning : OUT STD_LOGIC -- Warning output
     );
-end SEQRecognizer;
+END SequenceRecognizer;
 
-architecture Behavioral of SEQRecognizer is
-    type state_type is (IDLE, CHECKING);
-    signal state          : state_type := IDLE;
-    signal current_index  : integer range 0 to 4 := 0;
-    signal failures       : integer range 0 to 3 := 0;
-    type seq_type is array (0 to 4) of unsigned(7 downto 0);
-    constant SEQ     : seq_type := (
-        x"24", -- 36
-        x"13", -- 19
-        x"38", -- 56
-        x"65", -- 101
-        x"49"  -- 73
+ARCHITECTURE Behavioral OF SequenceRecognizer IS
+    TYPE State_Type IS (WaitingForFirst, WaitingForNext, ErrorState);
+    SIGNAL current_state : State_Type;
+    SIGNAL next_index : INTEGER RANGE 0 TO 4;
+    SIGNAL error : STD_LOGIC;
+    SIGNAL error_count : INTEGER RANGE 0 TO 100; -- Arbitrarily large enough range
+
+    TYPE Array_Type IS ARRAY(0 TO 4) OF STD_LOGIC_VECTOR(7 DOWNTO 0);
+    CONSTANT CORRECT_SEQUENCE : Array_Type := (
+        x"24", x"13", x"38", x"65", x"49"
     );
-begin
-
-    process(clk, rst)
-    begin
-        if rst = '1' then
-            state <= IDLE;
-            current_index <= 0;
-            failures <= 0;
+BEGIN
+    -- State transition and output logic
+    PROCESS (clk, reset)
+    BEGIN
+        IF reset = '1' THEN
+            current_state <= WaitingForFirst;
+            next_index <= 0;
+            error <= '0';
+            error_count <= 0;
             unlock <= '0';
             warning <= '0';
-        elsif rising_edge(clk) then
-            if input_reset = '1' then
-                state <= IDLE;
-                current_index <= 0;
-                failures <= 0;
-                unlock <= '0';
-                warning <= '0';
-            else
-                case state is
-                    when IDLE =>
-                        if input_first = '1' then
-                            if input_number = SEQ(0) then
-                                current_index <= 1;
-                                unlock <= '0';
+        ELSIF rising_edge(clk) THEN
+            CASE current_state IS
+                WHEN WaitingForFirst =>
+                    IF first = '1' THEN
+                        IF CORRECT_SEQUENCE(0) /= number THEN
+                            error <= '1';
+                        END IF;
+                        next_index <= 1;
+                        current_state <= WaitingForNext;
+                    END IF;
+                    unlock <= '0';
+                    warning <= '0';
+
+                WHEN WaitingForNext =>
+                    IF first = '1' THEN
+                        current_state <= ErrorState;
+                        warning <= '1';
+                    ELSE
+                        IF CORRECT_SEQUENCE(next_index) /= number THEN
+                            error <= '1';
+                        END IF;
+                        IF next_index = 4 THEN
+                            next_index <= 0;
+                            IF error = '1' THEN
+                                error_count <= error_count + 1;
+                            END IF;
+                            IF error = '1' AND error_count >= 2 THEN
+                                current_state <= ErrorState;
+                            ELSE
+                                current_state <= WaitingForFirst;
+                            END IF;
+                            IF error = '0' THEN
+                                unlock <= '1';
                                 warning <= '0';
-                                state <= CHECKING;
-                            else
-                                failures <= failures + 1;
+                            ELSE
+                                unlock <= '0';
                                 warning <= '1';
-                            end if;
-                        end if;
-                    when CHECKING =>
-                        if failures >= 3 then
-                            unlock <= '0';
-                            warning <= '1';
-                        else
-                            if input_first = '1' then
-                                failures <= failures + 1;
-                                warning <= '1';
-                                state <= IDLE;
-                            elsif input_number = SEQ(current_index) then
-                                if current_index = 4 then
-                                    unlock <= '1';
-                                    warning <= '0';
-                                    current_index <= 0;
-                                    state <= IDLE;
-                                else
-                                    current_index <= current_index + 1;
-                                    unlock <= '0';
-                                    warning <= '0';
-                                end if;
-                            else
-                                failures <= failures + 1;
-                                warning <= '1';
-                                current_index <= 0;
-                                state <= IDLE;
-                            end if;
-                        end if;
-                end case;
-            end if;
-        end if;
-    end process;
+                            END IF;
+                            error <= '0';
+                        ELSE
+                            next_index <= next_index + 1;
+                        END IF;
+                        
+                    END IF;
 
-end Behavioral;
+                WHEN ErrorState =>
+                    unlock <= '0';
+                    warning <= '1';
 
+            END CASE;
+        END IF;
+    END PROCESS;
+END Behavioral;

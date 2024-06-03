@@ -43,14 +43,13 @@ __run:
     cd ..
 
 
-__start_gtkwave:
+start_gtkwave:
     #!/bin/bash
     gtkwave {{BUILD_DIR}}/{{DUMP_DIR}}/*.vcd
 
 run:
     just build
     just __run
-    just __start_gtkwave
 
 
 clean:
