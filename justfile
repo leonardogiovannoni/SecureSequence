@@ -70,5 +70,6 @@ test:
 
 clean:
     #!/bin/bash
-    rm -rf {{BUILD_DIR}}
     mkdir -p {{BUILD_DIR}}/{{DUMP_DIR}}
+    find . -name "*.cf" -exec rm {} \;
+    find . -name "*.vcf" -exec rm {} \;
