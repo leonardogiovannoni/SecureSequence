@@ -1,70 +1,75 @@
 use std::{fmt::format, str::FromStr};
-
 use serde::Deserialize;
+use clap::Parser;
 
 
-static PREAMBOLE: &str = r#"
+fn preamble(num: usize) -> String {
+    format!(r#"
 LIBRARY IEEE;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
+USE std.env.stop;
 
-ENTITY SequenceRecognizer_tb IS
-END SequenceRecognizer_tb;
+ENTITY SequenceRecognizer_tb{} IS
+END SequenceRecognizer_tb{};
 
-ARCHITECTURE behavior OF SequenceRecognizer_tb IS
+ARCHITECTURE behavior OF SequenceRecognizer_tb{} IS
 
     -- Component Declaration for the Unit Under Test (UUT)
     COMPONENT SequenceRecognizer
-    PORT(
-         clk : IN  std_logic;
-         reset : IN  std_logic;
-         number : IN  std_logic_vector(7 DOWNTO 0);
-         first : IN  std_logic;
-         unlock : OUT  std_logic;
-         warning : OUT  std_logic
+        PORT (
+            clk : IN STD_LOGIC;
+            reset : IN STD_LOGIC;
+            number : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+            first : IN STD_LOGIC;
+            unlock : OUT STD_LOGIC;
+            warning : OUT STD_LOGIC
         );
     END COMPONENT;
-    
+
     -- Inputs
-    signal clk : std_logic := '0';
-    signal reset : std_logic := '0';
-    signal number : std_logic_vector(7 DOWNTO 0) := (others => '0');
-    signal first : std_logic := '0';
+    SIGNAL clk : STD_LOGIC := '0';
+    SIGNAL reset : STD_LOGIC := '0';
+    SIGNAL number : STD_LOGIC_VECTOR(7 DOWNTO 0) := (OTHERS => '0');
+    SIGNAL first : STD_LOGIC := '0';
 
     -- Outputs
-    signal unlock : std_logic;
-    signal warning : std_logic;
+    SIGNAL unlock : STD_LOGIC;
+    SIGNAL warning : STD_LOGIC;
 
     -- Clock period definition
-    constant clk_period : time := 10 ns;
+    CONSTANT clk_period : TIME := 10 ns;
 
 BEGIN
 
     -- Instantiate the Unit Under Test (UUT)
-    uut: SequenceRecognizer PORT MAP (
-          clk => clk,
-          reset => reset,
-          number => number,
-          first => first,
-          unlock => unlock,
-          warning => warning
-        );
+    uut : SequenceRecognizer PORT MAP(
+        clk => clk,
+        reset => reset,
+        number => number,
+        first => first,
+        unlock => unlock,
+        warning => warning
+    );
 
     -- Clock process definitions
-    clk_process :process
-    begin
+    clk_process : PROCESS
+    BEGIN
         clk <= '0';
-        wait for clk_period/2;
+        WAIT FOR clk_period/2;
         clk <= '1';
-        wait for clk_period/2;
-    end process;
+        WAIT FOR clk_period/2;
+    END PROCESS;
 
     -- Stimulus process
-    stim_proc: process
-    begin		
+    stim_proc : PROCESS
+    BEGIN		
     reset <= '1';
     WAIT FOR CLK_PERIOD; 
-"#;
+"#, num, num, num)
+}
+
+
 
 
 
@@ -76,17 +81,42 @@ struct Input {
 }
 
 impl Input {
+    fn emit_reset(&self) -> String {
+        format!("\treset <= '{}';", if self.reset { '1' } else { '0' })
+    }
+
+    fn emit_number(&self) -> String {
+        format!("\tnumber <= x\"{}\";", format!("{:02x}", self.number))
+    }
+
+    fn emit_first(&self) -> String {
+        format!("\tfirst <= '{}';", if self.first { '1' } else { '0' })
+    }
+
     fn emit(&self) -> String {
         format!(
-            r#"
-            reset <= '{}';
-            number <= x"{}";
-            first <= '{}';
-            "#,
-            if self.reset { '1' } else { '0' },
-            format!("{:02x}", self.number),
-            if self.first { '1' } else { '0' },
-        )
+            "{}\n{}\n{}\n",
+            self.emit_reset(),
+            self.emit_number(),
+            self.emit_first()
+        ) 
+    }
+
+    fn emit_diff(&self, prev: &Input) -> String {
+        let mut rv = String::new();
+        if self.reset != prev.reset {
+            rv.push_str(&self.emit_reset());
+            rv.push_str("\n");
+        }
+        if self.number != prev.number {
+            rv.push_str(&self.emit_number());
+            rv.push_str("\n");
+        }
+         if self.first != prev.first {
+            rv.push_str(&self.emit_first());
+            rv.push_str("\n");
+        }
+        rv
     }
 }
 
@@ -109,27 +139,28 @@ struct InputWithAsserts {
 }
 
 impl InputWithAsserts {
+
+    
+
     fn emit(&self) -> String {
-        let input = self.input.emit();
-        let asserts = match self.asserts {
-            Some(asserts) => {
-                format!(
-                    r#"
-                    assert unlock = '{}' report "Unlock error" severity error;
-                    assert warning = '{}' report "Warning error" severity error;
-                    "#,
-                    if asserts.unlock { '1' } else { '0' },
-                    if asserts.warning { '1' } else { '0' },
-                )
-            }
-            None => "".to_string(),
-        };
-        format!(r#"
-                {}
-                wait for CLK_PERIOD;
-                {}
-                "#, input, asserts)
+        self.emit_base(|| self.input.emit())
     }
+
+    fn emit_diff(&self, prev: &InputWithAsserts) -> String {
+        self.emit_base(|| self.input.emit_diff(&prev.input))
+    }
+    
+
+    fn emit_base(&self, f: impl FnOnce() -> String) -> String {
+        let mut rv = String::new();
+        rv.push_str(&f());
+        rv.push_str("\tWAIT FOR CLK_PERIOD;\n");
+        if let Some(asserts) = self.asserts {
+            rv.push_str(&format!("\tASSERT unlock = '{}' REPORT \"Unlock error\" SEVERITY error;\n", if asserts.unlock { '1' } else { '0' }));
+            rv.push_str(&format!("\tASSERT warning = '{}' REPORT \"Warning error\" SEVERITY error;\n", if asserts.warning { '1' } else { '0' }));
+        }
+        rv
+    } 
 }
 
 #[derive(Debug)]
@@ -139,17 +170,30 @@ struct InputListWithAsserts {
 
 impl InputListWithAsserts {
     fn emit(&self) -> String {
-        let mut rv = self.inputs.iter().map(|input| input.emit()).collect::<Vec<String>>().join("\n");
-        rv.push_str("\nwait;\n");
+        let (_, mut rv) =
+            self.inputs
+                .iter()
+                .fold((None, String::new()), |(prev, mut acc), input| {
+                   if let Some(prev) = prev {
+                        acc.push_str(&input.emit_diff(prev));
+                    } else {
+                        acc.push_str(&input.emit());
+                    }
+                    (Some(input), acc)
+                });
+        rv.push_str("\nSTOP;\n");
         rv
     }
 }
 
-fn emit_tb(input_list: InputListWithAsserts) -> String {
-    format!("{}{}{}", PREAMBOLE, input_list.emit(), "end process;\nend behavior;\n")
+fn emit_tb(input_list: InputListWithAsserts, num: usize) -> String {
+    format!(
+        "{}{}{}",
+        preamble(num),
+        input_list.emit(),
+        "END process;\nEND behavior;\n"
+    )
 }
-
-
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -203,38 +247,36 @@ impl FromStr for InputListWithAsserts {
 
 
 
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(short, long)]
+    dir: String,
+
+    #[clap(short, long)]
+    out_dir: String,
+    
+}
+
 
 
 fn main() {
-    let data = r#"
-    arr:
-        - [0, 36, 1, [0, 0]]
-        - [0, 19, 0]
-        - [0, 56, 0]
-        - [0, 101, 0]
-        - [0, 73, 0, [1, 0]]
-
-        - [0, 255, 0, [0, 0]]
-        - [0, 255, 0, [0, 0]]
-
-        - [0, 36, 1]
-        - [0, 19, 0]
-        - [0, 55, 0]
-        - [0, 101, 0]
-        - [0, 73, 0, [0, 1]]
-
-        - [0, 255, 0, [0, 0]]
-
-        - [0, 36, 1]
-        - [0, 19, 0]
-        - [0, 56, 0]
-        - [0, 101, 0]
-        - [0, 73, 0, [1, 0]]
-
-        - [0, 255, 0, [0, 0]]
-    "#;
-
-    let input_list = InputListWithAsserts::from_str(data).unwrap();
-    let tb = emit_tb(input_list);
-    println!("{}", tb);
+    let args = Args::parse();
+    
+    let out_dir = std::path::Path::new(&args.out_dir);
+    let mut counter = 0;
+    for entry in std::fs::read_dir(args.dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if let Some(ext) = path.extension() {
+            if ext == "yaml" {
+                let data = std::fs::read_to_string(path.clone()).unwrap();
+                let input_list = InputListWithAsserts::from_str(&data).unwrap();
+                let tb = emit_tb(input_list, counter);
+                let file_name = out_dir.join(format!("SequenceRecognizer_tb{}.vhd", counter));
+                counter += 1;
+                std::fs::write(file_name, tb).unwrap();
+            }
+        }
+    }    
 }
