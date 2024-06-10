@@ -64,6 +64,8 @@ BEGIN
 	number <= x"24";
 	first <= '1';
 	WAIT FOR CLK_PERIOD;
+	ASSERT unlock = '0' REPORT "Unlock error" SEVERITY error;
+	ASSERT warning = '0' REPORT "Warning error" SEVERITY error;
 	reset <= '1';
 	number <= x"00";
 	first <= '0';

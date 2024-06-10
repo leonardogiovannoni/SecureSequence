@@ -39,7 +39,9 @@ run test:
     cd ..
 
 
-generate_test:
+
+
+generate-test:
     #!/bin/bash
     mkdir -p {{TESTBENCH_DIR}}
     cd {{TEST_GEN_DIR}}
@@ -48,28 +50,40 @@ generate_test:
 
 
 
-start_gtkwave:
+start-gtkwave:
     #!/bin/bash
     gtkwave {{BUILD_DIR}}/{{DUMP_DIR}}/*.vcd
 
 test:
     #!/bin/bash
     # for each file in testbench directory
-    just clean
+    just _clean
     for file in {{TESTBENCH_DIR}}/*.vhd; do
         just analyze $(basename $file)
         just elaborate $(basename $file .vhd)
         echo "Running test: $(basename $file .vhd)"
         just run $(basename $file .vhd)
-        just clean
+        just _clean
     done
-    just clean
+    just _clean
     
 
+test-one test: 
+    #!/bin/bash
+    just _clean
+    just analyze {{test}}
+    just elaborate $(basename {{test}} .vhd)
+    just run $(basename {{test}} .vhd)
+
+
+_clean:
+    #!/bin/bash
+    mkdir -p {{BUILD_DIR}}/{{DUMP_DIR}}
+    find . -name "*.cf" -exec rm {} \+
+    find . -name "*.vcf" -exec rm {} \+
 
 
 clean:
-    #!/bin/bash
+    just _clean
+    rm -rf {{BUILD_DIR}}
     mkdir -p {{BUILD_DIR}}/{{DUMP_DIR}}
-    find . -name "*.cf" -exec rm {} \;
-    find . -name "*.vcf" -exec rm {} \;
