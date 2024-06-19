@@ -3,17 +3,17 @@ use serde::Deserialize;
 use clap::Parser;
 
 
-fn preamble(num: usize) -> String {
+fn preamble(name: &str) -> String {
     format!(r#"
 LIBRARY IEEE;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
 USE std.env.stop;
 
-ENTITY SequenceRecognizer_tb{} IS
-END SequenceRecognizer_tb{};
+ENTITY {} IS
+END {};
 
-ARCHITECTURE behavior OF SequenceRecognizer_tb{} IS
+ARCHITECTURE behavior OF {} IS
 
     -- Component Declaration for the Unit Under Test (UUT)
     COMPONENT SequenceRecognizer
@@ -66,7 +66,7 @@ BEGIN
     BEGIN		
     reset <= '1';
     WAIT FOR CLK_PERIOD; 
-"#, num, num, num)
+"#, name, name, name)
 }
 
 
@@ -186,10 +186,10 @@ impl InputListWithAsserts {
     }
 }
 
-fn emit_tb(input_list: InputListWithAsserts, num: usize) -> String {
+fn emit_tb(input_list: InputListWithAsserts, name: &str) -> String {
     format!(
         "{}{}{}",
-        preamble(num),
+        preamble(name),
         input_list.emit(),
         "END process;\nEND behavior;\n"
     )
@@ -264,17 +264,16 @@ fn main() {
     let args = Args::parse();
     
     let out_dir = std::path::Path::new(&args.out_dir);
-    let mut counter = 0;
     for entry in std::fs::read_dir(args.dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
         if let Some(ext) = path.extension() {
             if ext == "yaml" {
+                let name = path.file_stem().unwrap().to_str().unwrap();
                 let data = std::fs::read_to_string(path.clone()).unwrap();
                 let input_list = InputListWithAsserts::from_str(&data).unwrap();
-                let tb = emit_tb(input_list, counter);
-                let file_name = out_dir.join(format!("SequenceRecognizer_tb{}.vhd", counter));
-                counter += 1;
+                let tb = emit_tb(input_list, name);
+                let file_name = out_dir.join(format!("{}.vhd", name));
                 std::fs::write(file_name, tb).unwrap();
             }
         }

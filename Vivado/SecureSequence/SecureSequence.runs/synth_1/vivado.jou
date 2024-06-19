@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2024.1 (64-bit)
+# SW Build 5076996 on Wed May 22 18:36:09 MDT 2024
+# IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+# SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+# Start of session at: Wed Jun 19 13:38:20 2024
+# Process ID: 41700
+# Current directory: /home/leonardogiovannoni/Vivado/SecureSequence/SecureSequence.runs/synth_1
+# Command line: vivado -log SequenceRecognizer.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source SequenceRecognizer.tcl
+# Log file: /home/leonardogiovannoni/Vivado/SecureSequence/SecureSequence.runs/synth_1/SequenceRecognizer.vds
+# Journal file: /home/leonardogiovannoni/Vivado/SecureSequence/SecureSequence.runs/synth_1/vivado.jou
+# Running On        :ZenBook-UX363JA
+# Platform          :Ubuntu
+# Operating System  :Ubuntu 24.04 LTS
+# Processor Detail  :Intel(R) Core(TM) i5-1035G4 CPU @ 1.10GHz
+# CPU Frequency     :2164.270 MHz
+# CPU Physical cores:4
+# CPU Logical cores :8
+# Host memory       :8004 MB
+# Swap memory       :21474 MB
+# Total Virtual     :29479 MB
+# Available Virtual :23439 MB
+#-----------------------------------------------------------
+source SequenceRecognizer.tcl -notrace
